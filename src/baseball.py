@@ -4,6 +4,7 @@ from pybaseball import statcast_batter, spraychart
 
 import pandas as pd
 import matplotlib.pyplot as plt
+from datetime import datetime, timezone
 
 
 abbreviation_to_name = {
@@ -185,7 +186,7 @@ def update_records(tto_df, key_mlbam, run_date):
     
     
     tto_df.loc[(tto_df["key_mlbam"] == key_mlbam) & (tto_df["run_date"] == run_date), "has_been_posted"] = True
-    tto_df.loc[(tto_df["key_mlbam"] == key_mlbam) & (tto_df["run_date"] == run_date), "posted_time"] = "now"
+    tto_df.loc[(tto_df["key_mlbam"] == key_mlbam) & (tto_df["run_date"] == run_date), "posted_time"] = str(datetime.now(timezone.utc))
     
     tto_df.to_csv("data/tto.csv", mode="w", index = False)
 

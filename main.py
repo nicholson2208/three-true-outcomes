@@ -38,21 +38,21 @@ def main():
     if row is not None:
         # there is still stuff ot post today
         post = create_image_and_text_for_post(row, tto_events_df)
-        print("the post says ", post)
+        print("the thing I am going to try to post says ", post)
     
     else:
-        print("there are not more things to post today")
+        print("there are no more things to post today")
         return    
     
     # change this when I am read to go live
-    if False:
+    if True:
+        print("making a post")
         send_post(text="Shout out to the three true outcome king of the day", image_path = "data/image.png", alt=post["alt"])
-        
         # TODO: just assume this works I guess?, I feel like there might be a "failed" message that I should check
         update_records(tto_df, post["key_mlbam"], post["run_date"])
+        
     else:
-        print(post)
-
+        pass
 
 
 if __name__ == "__main__":
