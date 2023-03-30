@@ -1,6 +1,6 @@
 # Author: Matt Nicholson
 
-from src.baseball import get_three_true_outcomes, get_next_unposted_row, create_image_and_text_for_post, update_records
+from src.baseball import get_three_true_outcomes, get_next_unposted_row, get_video_clip_urls, create_image_and_text_for_post, update_records
 from src.bot import test, send_post
 
 import os
@@ -12,7 +12,7 @@ def main():
     # figure out the date and time to run
     # Github actions will be utc
     
-    run_dt = '2022-06-13'
+    run_dt = '2022-06-16'
     tto_df = pd.DataFrame()
     tto_events_df = pd.DataFrame()
     
@@ -34,11 +34,23 @@ def main():
 
     row = get_next_unposted_row(tto_df)
     post = {}
+    text = ""
     
     if row is not None:
-        # there is still stuff ot post today
+        # there is still stuff to post today
         post = create_image_and_text_for_post(row, tto_events_df)
         print("the thing I am going to try to post says ", post)
+        
+        vid_urls = get_video_clip_urls(row, tto_events_df)
+        #print(vid_urls)
+        
+        text = "Shout-out to the three true outcome king of " +  run_dt + "\n\n"
+        text += "See the clips of these events here:\n"
+        
+        for url in vid_urls:
+            # adding the urls one by one
+            text += url + "\n"
+
     
     else:
         print("there are no more things to post today")
@@ -47,7 +59,7 @@ def main():
     # change this when I am read to go live
     if True:
         print("making a post")
-        send_post(text="Shout out to the three true outcome king of the day", image_path = "data/image.png", alt=post["alt"])
+        send_post(text=text, image_path = "data/image.png", alt=post["alt"])
         # TODO: just assume this works I guess?, I feel like there might be a "failed" message that I should check
         update_records(tto_df, post["key_mlbam"], post["run_date"])
         

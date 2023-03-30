@@ -3,6 +3,7 @@ from pybaseball import playerid_reverse_lookup
 from pybaseball import statcast_batter, spraychart
 
 import pandas as pd
+import requests as re
 import matplotlib.pyplot as plt
 from datetime import datetime, timezone
 
@@ -128,7 +129,58 @@ def get_next_unposted_row(tto_df):
         return not_yet_posted.iloc[0]
     
     return None
+
+
+def get_video_clip_urls(actual_row, tto_events):
+    """
+    prepares the information needed for a post
     
+    Args:
+        actual_row: (DataFrame)
+            something here
+    
+    Modifies:
+    
+    Returns:
+        dict with title, alt fields
+    """
+    # this is the thing we will return
+    list_vid_urls = []
+    
+    # filter to just the batter we care about
+    sub_data = tto_events.loc[tto_events["batter"] == actual_row.key_mlbam]
+    
+    bs_game_data_endpoint = "https://baseballsavant.mlb.com/gf?game_pk=" 
+
+    resp = re.get(bs_game_data_endpoint + str(sub_data.game_pk.iloc[0]))
+    
+    if resp.status_code != 200:
+        return []
+        
+    resp_json = resp.json()
+    
+    # this means we have data, but need to find the play ids
+    # so at_bat_number is for the whole game, so I can concat the two part of that field to get the whole thing.
+    game_data_df = pd.DataFrame(resp_json["team_away"])
+    game_data_df = pd.concat([game_data_df, pd.DataFrame(resp_json["team_home"])])
+
+    bs_video_endpoint = "https://baseballsavant.mlb.com/sporty-videos?playId="
+    
+    for this_at_bat_number in sorted(sub_data.at_bat_number):
+        
+        # get the data for the whole AB
+        this_ab = game_data_df[game_data_df["ab_number"] == this_at_bat_number]
+
+        # the last pitch is what we care about
+        last_pitch = this_ab[this_ab["pitch_number"] == this_ab["pitch_number"].max()]
+        
+        # the url of the clip is just the vid url + play id
+        vid_url = bs_video_endpoint + str(last_pitch.play_id.iloc[0])
+        list_vid_urls.append(vid_url)
+        
+    return list_vid_urls
+    
+
 
 def create_image_and_text_for_post(actual_row, tto_events):
     """
