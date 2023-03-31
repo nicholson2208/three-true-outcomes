@@ -42,6 +42,21 @@ abbreviation_to_name = {
     "else" : "generic"
 }
 
+pitch_abbreviation_to_name = {
+    "FF" : "4-Seam Fastball",
+    "CU" : "Changeup",
+    "FC" : "Cutter",
+    "EP" : "Eephus",
+    "FO" : "Forkball",
+    "KN" : "Knuckleball",
+    "KC" : "Knuckle-curve",
+    "SC" : "Screwball",
+    "SI" : "Sinker",
+    "SL" : "Slider",
+    "FS" : "Splitter",
+    "FT" : "2-Seam Fastball"
+}
+
 
 def get_three_true_outcomes_events(start_dt = None, end_dt = None):
     """
@@ -145,7 +160,7 @@ def get_video_clip_urls(actual_row, tto_events):
         dict with title, alt fields
     """
     # this is the thing we will return
-    list_vid_urls = []
+    vid_urls_dict = {}
     
     # filter to just the batter we care about
     sub_data = tto_events.loc[tto_events["batter"] == actual_row.key_mlbam]
@@ -155,7 +170,7 @@ def get_video_clip_urls(actual_row, tto_events):
     resp = re.get(bs_game_data_endpoint + str(sub_data.game_pk.iloc[0]))
     
     if resp.status_code != 200:
-        return []
+        return {}
         
     resp_json = resp.json()
     
@@ -176,11 +191,10 @@ def get_video_clip_urls(actual_row, tto_events):
         
         # the url of the clip is just the vid url + play id
         vid_url = bs_video_endpoint + str(last_pitch.play_id.iloc[0])
-        list_vid_urls.append(vid_url)
+        vid_urls_dict[str(this_at_bat_number)] = vid_url
         
-    return list_vid_urls
+    return vid_urls_dict
     
-
 
 def create_image_and_text_for_post(actual_row, tto_events):
     """
@@ -206,7 +220,6 @@ def create_image_and_text_for_post(actual_row, tto_events):
 
     # Abbreviation
     abbv = sub_data.home_team.iloc[0]
-
     team_nickname = ""
     try:
         team_nickname = abbreviation_to_name[abbv]
@@ -216,7 +229,6 @@ def create_image_and_text_for_post(actual_row, tto_events):
     # Make alt text
     alt="A figure that includes an outline of the {0} stadium with home runs marked. The title reads {1}".format(abbv, title)
 
-    
     # so because they used plt.show under the hood, it hangs until you close it
     # turn on interactive mode
     plt.ion()
@@ -226,10 +238,39 @@ def create_image_and_text_for_post(actual_row, tto_events):
     ax.figure.savefig("data/image.png", metadata = {"alt" : alt})
     plt.close('all')    # close the figure window
     
+    
+    # write up the actual text of the post here
+    vid_urls_dict = get_video_clip_urls(actual_row, tto_events)
+    
+    description = "Shout-out to " + player_name + ", the three true outcome king of " + str(sub_data.game_date.iloc[0].date()) + "\n\n"
+    description += "See the events here:\n"
+    
+    for this_at_bat_number in sorted(sub_data.at_bat_number):
+        this_pitch_df = sub_data[sub_data["at_bat_number"] == this_at_bat_number].iloc[0]
+        
+        if this_pitch_df["events"] == "home_run":
+            description += "HR; " + str(this_pitch_df["hit_distance_sc"]) \
+                + " ft, " + str(this_pitch_df["launch_speed"]) + " mph, " + str(this_pitch_df["launch_angle"]) + "° launch"
+
+        else:
+            event = "K" if this_pitch_df["events"] == "strikeout" else "BB"
+
+            try:
+                readable_pitch_name = pitch_abbreviation_to_name[this_pitch_df["pitch_type"]]
+            except KeyError as e:
+                readable_pitch_name = ""
+
+            description += event + "; " + readable_pitch_name + ", " + str(this_pitch_df["release_speed"]) + " mph"
+        
+        # add the url
+        description += "\n" + vid_urls_dict[str(this_at_bat_number)] + "\n\n"
+    
     post = {"title" : title, 
             "alt" : alt, 
             "key_mlbam" : actual_row.key_mlbam, 
-            "run_date" : actual_row.run_date}
+            "run_date" : actual_row.run_date,
+            "description" : description
+           }
     
     return post
 
