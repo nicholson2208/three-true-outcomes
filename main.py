@@ -1,7 +1,7 @@
 # Author: Matt Nicholson
 
 from src.baseball import get_three_true_outcomes, get_next_unposted_row, get_video_clip_urls, create_image_and_text_for_post, update_records
-from src.bot import test, send_post
+from src.bot import test, send_post, send_test_post
 
 import os
 import pandas as pd
@@ -58,5 +58,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
-    # remember to make GH actions do a commit!
+    #main()
+    send_test_post()
