@@ -54,7 +54,9 @@ pitch_abbreviation_to_name = {
     "SI" : "Sinker",
     "SL" : "Slider",
     "FS" : "Splitter",
-    "FT" : "2-Seam Fastball"
+    "FT" : "2-Seam Fastball",
+    "ST" : "Sweeper",
+    "SV" : "Slurve"
 }
 
 

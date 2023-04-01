@@ -33,5 +33,12 @@ def send_post(text="Shout out to the three true outcome king of the day", image_
     media = mastodon.media_post(image_path, description=alt)
     mastodon.status_post(text, media_ids=media)
     
+def send_test_post():
+    # I think I also need to use os for an access token directly
+    mastodon = Mastodon(
+        access_token = os.environ['MASTODON_API_TOKEN'],
+        api_base_url = 'https://mast.mastodonsports.social/'
+    )
     
-# TODO: SHOULD MAYBE JUST USE SCHEDULED AT PARAM?
+    mastodon.status_post("hello again world, from GH actions")
+
