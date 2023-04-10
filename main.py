@@ -39,6 +39,9 @@ def main():
     
     if row is not None:
         # there is still stuff to post today
+        # to see if there are errors
+        print(row)
+        
         post = create_image_and_text_for_post(row, tto_events_df)
         print("the thing I am going to try to post says ", post)
     
