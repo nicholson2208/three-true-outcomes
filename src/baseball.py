@@ -2,9 +2,14 @@ from pybaseball import statcast
 from pybaseball import playerid_reverse_lookup
 from pybaseball import statcast_batter, spraychart
 
+import os
 import pandas as pd
 import requests as re
 import matplotlib.pyplot as plt
+from matplotlib.patches import Polygon, Rectangle
+from matplotlib.offsetbox import (TextArea, DrawingArea, OffsetImage,
+                                  AnnotationBbox)
+
 from datetime import datetime, timezone
 
 
@@ -81,7 +86,7 @@ def get_three_true_outcomes_events(start_dt = None, end_dt = None):
     return tto_events, df
     
     
-def get_three_true_outcomes(start_dt=None, end_dt=None):
+def get_three_true_outcomes(start_dt=None, end_dt=None, write_to_csv=True):
     """
     
     
@@ -122,9 +127,11 @@ def get_three_true_outcomes(start_dt=None, end_dt=None):
     only_three_outcomes["has_been_posted"] = False
     only_three_outcomes["posted_time"] = None
     
-    # make this a db as some point?
-    only_three_outcomes.to_csv("data/tto.csv", mode="w", index = False)
-    tto_events.to_csv("data/tto_events.csv", mode="w", index = False)
+    
+    if write_to_csv:
+        # make this a db as some point?
+        only_three_outcomes.to_csv("data/tto.csv", mode="w", index = False)
+        tto_events.to_csv("data/tto_events.csv", mode="w", index = False)
     
     return only_three_outcomes, tto_events
 
@@ -286,4 +293,152 @@ def update_records(tto_df, key_mlbam, run_date):
     
     tto_df.to_csv("data/tto.csv", mode="w", index = False)
 
+
+def plot_strike_zone(pitch_df: pd.DataFrame, title: str = '', colorby: str = 'pitch_type', annotation: str = None, axis = None) -> None:
+    """
+    Produces a pitches overlaid on a strike zone using statcast data
     
+    Args:
+        pitch_df: (pandas.DataFrame)
+            StatCast pandas.DataFrame of StatCast batter data
+        title: (str), default = ''
+            Optional: Title of plot
+        colorby: (str), default = 'pitch_type'
+            Optional: Which category to color the mark with. 'pitch_type','pitcher', 'description' or a column within data
+        legend_title: (str), default = based on colorby
+            Optional: Title for the legend
+        width: (int), default = 500
+            Optional: Width of plot (not counting the legend)
+        height: (int), default = 500
+            Optional: Height of plot
+    Returns:
+        A matplotlib.axes.Axes object that was used to generate the pitches overlaid on the strike zone
+    """
+    
+    # some things to auto adjust formatting
+    # make the markers really visible when fewer pitches
+    alpha_markers = min(0.8, 0.5 + 1 / pitch_df.shape[0])
+    alpha_text = alpha_markers + 0.2
+    
+    # define Matplotlib figure and axis
+    if axis is None:
+        fig, axis = plt.subplots()
+
+    # add home plate to plot 
+    home_plate_coords = [[-0.71, 0], [-0.85, -0.5], [0, -1], [0.85, -0.5], [0.71, 0]]
+    plate = Polygon(home_plate_coords,
+                edgecolor = 'darkgray',
+                facecolor = 'lightgray',
+                lw = 2)
+    axis.add_patch(plate)
+    
+    # add strike zone to plot. technically this can vary by batter
+    # ignore that for now
+    axis.add_patch(Rectangle((-0.71, 1.5), 2*0.71, 2,
+                 edgecolor = 'lightgray',
+                 fill=False,
+                 lw=3))
+    
+    legend_title = ""
+    color_label = ""
+    
+    # to avoid the SettingWithCopyWarning error
+    sub_data = pitch_df.copy().reset_index(drop=True)
+    
+    if colorby == 'pitch_type':
+        color_label = 'pitch_type'
+        
+        if not legend_title:
+            legend_title = 'Pitch Type'
+            
+    elif colorby == 'description':
+        values = sub_data.loc[:, 'description'].str.replace('_', ' ').str.title()
+        sub_data.loc[:, 'desc'] = values
+        color_label = 'desc'
+        
+        if not legend_title:
+            legend_title = 'Pitch Description'
+    elif colorby == 'pitcher':
+        color_label = 'player_name'
+        
+        if not legend_title:
+            legend_title = 'Pitcher'
+            
+    elif colorby == "events":
+        # only things where something happened
+        sub_data = sub_data[sub_data['events'].notna()]
+        sub_data['event'] = sub_data['events'].str.replace('_', ' ').str.title()
+        color_label = 'event'
+        
+        if not legend_title:
+            legend_title = 'Outcome'
+    
+    else:
+        color_label = colorby
+        if not legend_title:
+            legend_title = colorby
+        
+    scatters = []
+    
+    for color in sub_data[color_label].unique():
+        color_sub_data = sub_data[sub_data[color_label] == color]
+        scatters.append(axis.scatter(
+            color_sub_data["plate_x"],
+            color_sub_data['plate_z'],
+            s = 10**2,
+            label = pitch_abbreviation_to_name[color] if color_label == 'pitch_type' else color,
+            alpha = alpha_markers
+        ))
+
+        
+        # add an annotation at the center of the marker
+        if annotation:
+            for i, pitch_coord in zip(color_sub_data.index, zip(color_sub_data["plate_x"], color_sub_data['plate_z'])):
+                label_formatted = color_sub_data.loc[i, annotation]
+                label_formatted = label_formatted if not pd.isna(label_formatted) else ""
+                
+                if annotation in ["release_speed", "effective_speed", "launch_speed"] and label_formatted != "":
+                    label_formatted = "{:.0f}".format(label_formatted)
+                
+                axis.annotate(label_formatted,
+                            pitch_coord,
+                            size = 7,
+                            ha = 'center',
+                            va = 'center',
+                            alpha = alpha_text)
+
+    axis.set_xlim(-4, 4)
+    axis.set_ylim(-1.5, 7)
+    
+    axis.axis('off')
+
+    axis.legend(handles=scatters, title=legend_title, bbox_to_anchor=(0.85, 1), loc='upper left')
+    plt.title(title)
+
+    #plt.show()
+    
+    #return ax
+    
+
+def get_player_headshot(mlbam_id, size = 200, file_path = "data/headshots/", file_name = None):
+    
+    base_img_url = "https://img.mlbstatic.com/mlb-photos/image/upload/w_{size},q_200/v1/people/{mlbam_id}/headshot/silo/current".format(size = size, mlbam_id = mlbam_id)
+    
+    print(base_img_url)
+    
+    img_resp = re.get(base_img_url)
+    
+    if img_resp.status_code != 200:
+        print(img_resp.status_code)
+        
+        return -1
+    else:
+        os.makedirs(file_path, exist_ok=True)
+        
+        if file_name is None:
+            file_name = str(mlbam_id) + ".png"
+            
+            
+        with open(file_path + file_name, 'wb') as f:
+            f.write(img_resp.content)
+        
