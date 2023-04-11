@@ -1,6 +1,6 @@
 from pybaseball import statcast
 from pybaseball import playerid_reverse_lookup
-from pybaseball import statcast_batter, spraychart
+from pybaseball import statcast_batter, spraychart, plot_stadium
 
 import os
 import pandas as pd
@@ -83,6 +83,9 @@ def get_three_true_outcomes_events(start_dt = None, end_dt = None):
     
     tto_events = df.loc[df["events"].isin(["strikeout", "walk", "home_run"])]
     
+    print(df)
+
+    
     return tto_events, df
     
     
@@ -104,7 +107,7 @@ def get_three_true_outcomes(start_dt=None, end_dt=None, write_to_csv=True):
     
     tto_events, df = get_three_true_outcomes_events(start_dt= start_dt, end_dt = end_dt)
     
-    outcome_counts = tto_events.groupby("batter")["events"].value_counts().unstack(fill_value=0)
+    outcome_counts = tto_events.groupby("batter")["events"].value_counts().unstack(fill_value=0)    
     three_outcomes = outcome_counts.loc[(outcome_counts["home_run"] > 0) & (outcome_counts["strikeout"] > 0) & (outcome_counts["walk"] > 0)]
 
     # Now try to calculate only three true outcomes
@@ -225,32 +228,12 @@ def create_image_and_text_for_post(actual_row, tto_events):
 
     sub_data = tto_events.loc[tto_events["batter"] == actual_row.key_mlbam]
 
-    title = player_name + " " + "HR(s): " + str(actual_row.home_run) +\
-    ", " + "BB(s): " + str(actual_row.walk) + ", and K(s): " + str(actual_row.strikeout)
-
-    # Abbreviation
-    abbv = sub_data.home_team.iloc[0]
-    team_nickname = ""
-    try:
-        team_nickname = abbreviation_to_name[abbv]
-    except KeyError:
-        team_nickname = abbreviation_to_name["else"]
-
-    # Make alt text
-    alt="A figure that includes an outline of the {0} stadium with home runs marked. The title reads {1}".format(abbv, title)
-
-    # so because they used plt.show under the hood, it hangs until you close it
-    # turn on interactive mode
-    plt.ion()
-    
-    ax = spraychart(sub_data, team_nickname, title = title, height = 400, width=400)
-
-    ax.figure.savefig("data/image.png", metadata = {"alt" : alt})
-    plt.close('all')    # close the figure window
-    
+    post = plot_spraychart_and_strikezone(actual_row, tto_events)
     
     # write up the actual text of the post here
     vid_urls_dict = get_video_clip_urls(actual_row, tto_events)
+    
+    #print(sub_data.game_date.iloc[0].date())
     
     description = "Shout-out to " + player_name + ", the three true outcome king of " + str(sub_data.game_date.iloc[0].date()) + "\n\n"
     description += "See the events here:\n"
@@ -275,12 +258,11 @@ def create_image_and_text_for_post(actual_row, tto_events):
         # add the url
         description += "\n" + vid_urls_dict[str(this_at_bat_number)] + "\n\n"
     
-    post = {"title" : title, 
-            "alt" : alt, 
-            "key_mlbam" : actual_row.key_mlbam, 
-            "run_date" : actual_row.run_date,
-            "description" : description
-           }
+    description += "#mlb"
+    
+    post["description"] = description
+    post["key_mlbam"] = actual_row.key_mlbam
+    post["run_date"] = actual_row.run_date
     
     return post
 
@@ -415,10 +397,44 @@ def plot_strike_zone(pitch_df: pd.DataFrame, title: str = '', colorby: str = 'pi
     axis.legend(handles=scatters, title=legend_title, bbox_to_anchor=(0.85, 1), loc='upper left')
     plt.title(title)
 
+    # THIS WILL ONLY WORK FOR THE FIRST PERSON! 
+
+    
+def make_tto_strikezone_plot(actual_row, tto_events, axis=None):
+    
+    batter_df = tto_events[tto_events["batter"] == actual_row["key_mlbam"]]
+    batter_name = actual_row.name_first.capitalize() + " " + actual_row.name_last.capitalize()
+    
+    # define Matplotlib figure and axis
+    if axis is None:
+        fig, axis = plt.subplots()
+
+    # IDK what this does tbh
+    xy = (1.05, 1)
+
+    player_id = batter_df.batter.iloc[0]
+
+    get_player_headshot(player_id)
+
+    im = plt.imread("data/headshots/{}.png".format(player_id))
+
+    plot_strike_zone(batter_df, colorby = 'events', annotation = "pitch_type", axis = axis)
+
+    imagebox = OffsetImage(im, zoom=0.5)
+    imagebox.image.axes = axis
+
+    ab = AnnotationBbox(imagebox, xy,
+                        xybox=(.15, 0.75),
+                        xycoords='subfigure fraction',
+                        boxcoords="subfigure fraction",
+                        pad=0.1)
+
+    axis.add_artist(ab)
+    
+    plt.axis("off")
+
     #plt.show()
-    
-    #return ax
-    
+
 
 def get_player_headshot(mlbam_id, size = 200, file_path = "data/headshots/", file_name = None):
     
@@ -441,4 +457,127 @@ def get_player_headshot(mlbam_id, size = 200, file_path = "data/headshots/", fil
             
         with open(file_path + file_name, 'wb') as f:
             f.write(img_resp.content)
+        
+
+def plot_spraychart_and_strikezone(actual_row, tto_events):
+    
+    metadata ={}
+    
+    player_name = actual_row.name_first.capitalize() + " " + actual_row.name_last.capitalize()
+    metadata["player_name"] = player_name
+
+    sub_data = tto_events.loc[tto_events["batter"] == actual_row.key_mlbam]
+
+    title = player_name + " " + "HR(s): " + str(actual_row.home_run) +\
+    ", " + "BB(s): " + str(actual_row.walk) + ", and K(s): " + str(actual_row.strikeout)
+
+    metadata["title"] = title
+
+    
+    # Abbreviation
+    abbv = sub_data.home_team.iloc[0]
+    team_nickname = ""
+    try:
+        team_nickname = abbreviation_to_name[abbv]
+    except KeyError:
+        team_nickname = abbreviation_to_name["else"]
+
+    # Make alt text
+    alt="A figure that includes an outline of the {0} stadium with home runs marked. The title reads {1}".format(abbv, title)
+    metadata["alt"] = alt
+
+    
+    # so because they used plt.show under the hood, it hangs until you close it
+    # turn on interactive mode
+    plt.ion()
+    
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(5, 10))
+    
+    make_tto_strikezone_plot(actual_row, tto_events, axis=ax1)
+    spraychart1(sub_data, team_nickname, height = 400, width=400, axis=ax2)
+    
+    fig.suptitle(title, fontsize=16)
+
+    fig.savefig("data/image.png", metadata = {"alt" : alt}, bbox_inches='tight')
+        
+    plt.close('all')    # close the figure window
+    
+    return metadata
+  
+
+def spraychart1(data: pd.DataFrame, team_stadium: str, title: str = '', tooltips = None,  # pylint: disable=too-many-arguments
+               size: int = 100, colorby: str = 'events', legend_title: str = '', width: int = 500,
+               height: int = 500, axis = None):
+    """
+    Produces a spraychart using statcast data overlayed on specified stadium
+    
+    Args:
+        data: (pandas.DataFrame)
+            StatCast pandas.DataFrame of StatCast batter data
+        team_stadium: (str)
+            Team whose stadium the hits will be overlaid on
+        title: (str), default = ''
+            Optional: Title of plot
+        tooltips: (List[str]), default = None
+            Optional: List of variables in data to include as tooltips (Deprecated)
+        size: (int), default = 100
+            Optional: Size of hit circles on plot
+        colorby: (str), default = 'events'
+            Optional: Which category to color the mark with. 'events','player', or a column within data
+        legend_title: (str), default = based on colorby
+            Optional: Title for the legend
+        width: (int), default = 500
+            Optional: Width of plot (not counting the legend)
+        height: (int), default = 500
+            Optional: Height of plot
+    Returns:
+        A matplotlib.axes.Axes object that was used to generate the stadium render and the spraychart
+    """
+    
+    plt.axis("off")
+
+
+    # pull stadium plot to overlay hits on
+    base = plot_stadium(team_stadium, title, width-50, height, axis=axis)
+
+    # only plot pitches where something happened
+    sub_data = data.copy().reset_index(drop=True)
+    sub_data = sub_data[sub_data['events'].notna()][sub_data['hc_x'].notna()][sub_data['hc_y'].notna()]
+    if colorby == 'events':
+        sub_data['event'] = sub_data['events'].str.replace('_', ' ').str.title()
+        color_label = 'event'
+        if not legend_title:
+            legend_title = 'Outcome'
+    elif colorby == 'player':
+        color_label = 'player_name'
+        if not legend_title:
+            legend_title = 'Player'
+    else:
+        color_label = colorby
+        if not legend_title:
+            legend_title = colorby
+
+    # scatter plot of hits
+    scatters = []
+    for color in sub_data[color_label].unique():
+        color_sub_data = sub_data[sub_data[color_label] == color]
+        scatters.append(base.scatter(
+            color_sub_data["hc_x"], color_sub_data['hc_y'].mul(-1), size, label=color, alpha=0.5
+        ))
+
+    if tooltips:
+        warnings.warn(
+            "Tooltips are disabled in the pyplot version of spraychart and will be removed in the future",
+            category=DeprecationWarning
+        )
+
+    plt.legend(handles=scatters, title=legend_title, bbox_to_anchor=(1.05, 1), loc='upper left')
+
+
+    
+    #plt.draw()
+
+    #plt.show()
+
+    #return base
         
