@@ -3,7 +3,7 @@ name: 3OutcomesMastodon
 on:
   workflow_dispatch:
   schedule:
-    - cron: '23 15 * * *'
+    - cron: '23 15-18 * * *'
 
 jobs:
   build:
