@@ -12,8 +12,8 @@ def main():
     
     # figure out the date and time to run
     # Github actions will be utc
-    #run_dt = str(datetime.date.today() + datetime.timedelta(days=-1))
-    run_dt = '2023-04-09'
+    run_dt = str(datetime.date.today() + datetime.timedelta(days=-1))
+    #run_dt = '2023-04-09'
     
     tto_df = pd.DataFrame()
     tto_events_df = pd.DataFrame()
