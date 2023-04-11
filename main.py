@@ -1,6 +1,6 @@
 # Author: Matt Nicholson
 
-from src.baseball import get_three_true_outcomes, get_next_unposted_row, get_video_clip_urls, create_image_and_text_for_post, update_records
+from src.baseball import *
 from src.bot import test, send_post, send_test_post
 
 import os
@@ -13,7 +13,7 @@ def main():
     # figure out the date and time to run
     # Github actions will be utc
     run_dt = str(datetime.date.today() + datetime.timedelta(days=-1))
-    #run_dt = '2022-06-16'
+    #run_dt = '2023-04-01'
     
     tto_df = pd.DataFrame()
     tto_events_df = pd.DataFrame()
