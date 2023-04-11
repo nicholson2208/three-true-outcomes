@@ -26,7 +26,7 @@ def send_post(text="Shout out to the three true outcome king of the day", image_
 
     # I think I also need to use os for an access token directly
     mastodon = Mastodon(
-        access_token = 'token.secret',
+        access_token = os.environ['MASTODON_API_TOKEN'],
         api_base_url = 'https://mast.mastodonsports.social/'
     )
     
