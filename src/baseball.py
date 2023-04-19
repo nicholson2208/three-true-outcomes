@@ -65,6 +65,7 @@ pitch_abbreviation_to_name = {
     "SV" : "Slurve"
 }
 
+mlb_logos = pd.read_csv("./data/team_logos/MLB_Colors_Logos.csv")
 
 def get_three_true_outcomes_events(start_dt = None, end_dt = None):
     """
@@ -409,9 +410,6 @@ def make_tto_strikezone_plot(actual_row, tto_events, axis=None):
     if axis is None:
         fig, axis = plt.subplots()
 
-    # IDK what this does tbh
-    xy = (1.05, 1)
-
     player_id = batter_df.batter.iloc[0]
 
     get_player_headshot(player_id)
@@ -420,14 +418,15 @@ def make_tto_strikezone_plot(actual_row, tto_events, axis=None):
 
     plot_strike_zone(batter_df, colorby = 'events', annotation = "pitch_type", axis = axis)
 
-    imagebox = OffsetImage(im, zoom=0.5)
+    imagebox = OffsetImage(im, zoom=0.4)
     imagebox.image.axes = axis
 
-    ab = AnnotationBbox(imagebox, xy,
-                        xybox=(.15, 0.75),
-                        xycoords='subfigure fraction',
-                        boxcoords="subfigure fraction",
-                        pad=0.1)
+    ab = AnnotationBbox(imagebox,
+                        (0, 1),
+                        xycoords='axes fraction',
+                        frameon=True,
+                        bboxprops=dict(lw=0),
+                        box_alignment = (0, 0.95))
 
     axis.add_artist(ab)
     
@@ -457,7 +456,33 @@ def get_player_headshot(mlbam_id, size = 200, file_path = "data/headshots/", fil
             
         with open(file_path + file_name, 'wb') as f:
             f.write(img_resp.content)
+
+            
+def get_team_logo(mlb_logos, team_abbr, file_path = "./data/team_logos/", file_name = None):
+    
+    # ok so the one from mlb is svg, and I don't want to deal with that, so use ESPN one
+    #base_img_url = mlb_logos.loc[mlb_logos["team_abbr"] == team_abbr, "team_cap_logo_on_dark"].values[0].replace("team-cap-on-dark/", "")
+    base_img_url = mlb_logos.loc[mlb_logos["team_abbr"] == team_abbr, "team_scoreboard_logo_espn"].values[0]
+
+    
+    print(base_img_url)
+    
+    img_resp = re.get(base_img_url)
+    
+    if img_resp.status_code != 200:
+        print(img_resp.status_code)
         
+        return -1
+    else:
+        os.makedirs(file_path, exist_ok=True)
+        
+        if file_name is None:
+            file_name = str(team_abbr) + ".png"
+            
+            
+        with open(file_path + file_name, 'wb') as f:
+            f.write(img_resp.content)
+
 
 def plot_spraychart_and_strikezone(actual_row, tto_events):
     
@@ -494,7 +519,7 @@ def plot_spraychart_and_strikezone(actual_row, tto_events):
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(5, 10))
     
     make_tto_strikezone_plot(actual_row, tto_events, axis=ax1)
-    spraychart1(sub_data, team_nickname, height = 400, width=400, axis=ax2)
+    spraychart1(sub_data, team_nickname, abbv, height = 400, width=400, axis=ax2)
     
     fig.suptitle(title, fontsize=16)
 
@@ -505,7 +530,7 @@ def plot_spraychart_and_strikezone(actual_row, tto_events):
     return metadata
   
 
-def spraychart1(data: pd.DataFrame, team_stadium: str, title: str = '', tooltips = None,  # pylint: disable=too-many-arguments
+def spraychart1(data: pd.DataFrame, team_stadium: str, abbv: str, title: str = '', tooltips = None,  # pylint: disable=too-many-arguments
                size: int = 100, colorby: str = 'events', legend_title: str = '', width: int = 500,
                height: int = 500, axis = None):
     """
@@ -536,10 +561,22 @@ def spraychart1(data: pd.DataFrame, team_stadium: str, title: str = '', tooltips
     
     plt.axis("off")
 
-
     # pull stadium plot to overlay hits on
     base = plot_stadium(team_stadium, title, width-50, height, axis=axis)
+    # tack on the logo too, arguably this should not pull if it exist already, but that's fine?
+    get_team_logo(mlb_logos, abbv)
 
+    im = plt.imread("./data/team_logos/{}.png".format(abbv), format="png")
+    
+    # TODO: make these numbers work better
+    ab = AnnotationBbox(OffsetImage(im, zoom=0.15, alpha=0.3),
+                        (0.5, 0.65),
+                        xycoords='axes fraction',
+                        frameon=False,
+                        bboxprops=dict(lw=0),
+                        box_alignment = (0.5, 0.5))
+    base.add_artist(ab)
+    
     # only plot pitches where something happened
     sub_data = data.copy().reset_index(drop=True)
     sub_data = sub_data[sub_data['events'].notna()][sub_data['hc_x'].notna()][sub_data['hc_y'].notna()]
@@ -571,7 +608,7 @@ def spraychart1(data: pd.DataFrame, team_stadium: str, title: str = '', tooltips
             category=DeprecationWarning
         )
 
-    plt.legend(handles=scatters, title=legend_title, bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.legend(handles=scatters, title=legend_title, bbox_to_anchor=(.85, 1), loc='upper left')
 
 
     
