@@ -234,9 +234,15 @@ def create_image_and_text_for_post(actual_row, tto_events):
     # write up the actual text of the post here
     vid_urls_dict = get_video_clip_urls(actual_row, tto_events)
     
-    #print(sub_data.game_date.iloc[0].date())
-    
-    description = "Shout-out to " + player_name + ", the three true outcome king of " + str(sub_data.game_date.iloc[0].date()) + "\n\n"
+    # print(sub_data.game_date.iloc[0])
+    # When we re read from a csv, the type of the "game_date" field changes to a string, so just try except?
+    game_date = ""
+    try:
+        game_date = str(sub_data.game_date.iloc[0].date())
+    except Exception:
+        game_date = str(sub_data.game_date.iloc[0])
+        
+    description = "Shout-out to " + player_name + ", the three true outcome king of " + game_date + "\n\n"
     description += "See the events here:\n"
     
     for this_at_bat_number in sorted(sub_data.at_bat_number):
