@@ -3,7 +3,7 @@ name: 3OutcomesMastodon
 on:
   workflow_dispatch:
   schedule:
-    - cron: '23 15 * * *'
+    - cron: '23 15-18 * * *'
 
 jobs:
   build:
@@ -36,5 +36,5 @@ jobs:
         git config user.name "Matt Nicholson"
         git pull
         git add *
-        git commit -m "completed run for `date +'%Y-%m-%d'`"
+        git commit -m "completed run for `date +'%Y-%m-%d'`" || exit 0
         git push

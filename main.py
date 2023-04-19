@@ -14,7 +14,7 @@ def main():
     # Github actions will be utc
     run_dt = str(datetime.date.today() + datetime.timedelta(days=-1))
     # run_dt = '2023-04-01'
-    
+
     tto_df = pd.DataFrame()
     tto_events_df = pd.DataFrame()
     
