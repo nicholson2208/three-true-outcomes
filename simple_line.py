@@ -42,7 +42,6 @@ p = figure(title="Count of Three True Outcome Events",
 p.vbar(x=plot_data.index, bottom=0, top=plot_data.values,
         width=0.8)
 
-# show the results
-show(row(p, data_table))
-
 output_file('index.html')
+
+save(row(p, data_table))
