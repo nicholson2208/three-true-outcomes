@@ -2,3 +2,4 @@ Mastodon.py==1.8.0
 numpy==1.24.2
 pandas==1.5.3
 pybaseball==2.2.5
+bokeh==3.1.0
