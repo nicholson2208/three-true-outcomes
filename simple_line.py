@@ -1,4 +1,4 @@
-from bokeh.plotting import figure, show, output_file
+from bokeh.plotting import figure, save, output_file
 from bokeh.models import ColumnDataSource, DataTable, DateFormatter, TableColumn
 from bokeh.layouts import row
 import pandas as pd
