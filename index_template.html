@@ -8,6 +8,7 @@
     <title>{% block title %}{{ title | e if title else "Bokeh Plot" }}{% endblock %}</title>
   {%  block preamble -%}{%- endblock %}
   {%  block resources %}
+    <script src="https://kit.fontawesome.com/9980f6d9fb.js" crossorigin="anonymous"></script>
     <style>
       html, body {
         box-sizing: border-box;
@@ -70,6 +71,31 @@
       text-decoration:underline
       }
 
+      .page__footer-follow ul {
+      margin:0;
+      padding: 20 0 0 0;
+      list-style-type:none
+      }
+      .page__footer-follow li {
+      display:inline-block;
+      padding-top:5px;
+      padding-bottom:5px;
+      font-family:-apple-system,BlinkMacSystemFont,"Roboto","Segoe UI","Helvetica Neue","Lucida Grande",Arial,sans-serif;
+      font-size:.75em;
+      text-transform:uppercase
+      }
+      .page__footer-follow li+li:before {
+      content:"";
+      padding-right:5px
+      }
+      .page__footer-follow a {
+      padding-right:10px;
+      font-weight:bold
+      }
+      .page__footer-follow .social-icons a {
+      white-space:nowrap
+      }
+
     </style>
   {%   block css_resources -%}
     {{- bokeh_css if bokeh_css }}
@@ -100,9 +126,18 @@
   {%    endblock contents %}
   {{ plot_script | indent(4) }}
   {%  endblock inner_body %}
-    <div class="page__footer">
-      <footer>Made with &#10084;&#65039; by <a href="https://mnnicholson.com">Matt Nicholson</a> </footer>
+  <footer>
+  <div class="page__footer">
+    <div class="page__footer-follow">
+      <ul class="social-icons">
+        <li>
+          <a href= "https://mast.mastodonsports.social/@3TrueOutcomes"><i class="fa-brands fa-mastodon"></i> Follow me on Mastodon</a>
+        </li>
+      </ul>
     </div>
+    <p>Made with &#10084;&#65039; by <a href="https://mnnicholson.com">Matt Nicholson</a></p>
+  </div>
+   </footer>
   </body>
   {% endblock body%}
 </html>
