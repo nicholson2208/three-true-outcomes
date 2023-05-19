@@ -49,6 +49,7 @@ abbreviation_to_name = {
 
 pitch_abbreviation_to_name = {
     "FF" : "4-Seam Fastball",
+    "FA" : "4-Seam Fastball",
     "CU" : "Curveball",
     "CH" : "Changeup",
     "FC" : "Cutter",
