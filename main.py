@@ -49,7 +49,7 @@ def main():
         print("there are no more things to post today")
         return    
     
-    # change this when I am read to go live
+    # change this when I am ready to go live
     if True:
         print("making a post")
         send_post(text=post["description"], image_path = "data/image.png", alt=post["alt"])

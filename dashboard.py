@@ -10,9 +10,22 @@ from bokeh.resources import CDN
 import pandas as pd
 from datetime import date, timedelta
 
+from pybaseball import playerid_reverse_lookup
+
 
 run_dt = str(date.today() + timedelta(days=-1))
 df = pd.read_csv("data/tto_events.csv")
+
+# turn the player id of batters into a readable name
+batter_names_df = playerid_reverse_lookup(df.batter, key_type='mlbam')
+
+batter_names_df.loc[:, "batter_name"] = (batter_names_df.name_first + " " + batter_names_df.name_last)
+batter_names_df.loc[:, "batter_name"] = batter_names_df.loc[:, "batter_name"].apply(str.title)
+
+df = df.merge(batter_names_df[["key_mlbam", "batter_name"]],
+              left_on='batter',
+              right_on='key_mlbam',
+              how="left")
 
 plot_data = df["events"].value_counts()
 outcomes = list(plot_data.index)
@@ -24,7 +37,7 @@ plot_filter = IndexFilter(list(range(df.shape[0])))
 plot_view = CDSView(filter=plot_filter)
 
 columns = [
-        TableColumn(field="batter", title="Batter"),
+        TableColumn(field="batter_name", title="Batter"),
         TableColumn(field="pitch_type", title="Pitch Type"),
         TableColumn(field="release_speed", title="Pitch Speed"),
         TableColumn(field="events", title="Outcome"),
@@ -129,11 +142,11 @@ pitches.selection_glyph = selected_circle
 pitches.nonselection_glyph = nonselected_circle
 
 tooltips = [
-    ("Batter", "@batter"),
+    ("Batter", "@batter_name"),
     ("Pitch Type", "@pitch_type"),
-    ("Pitch Speed", "@release_speed"),
+    ("Pitch Speed", "@release_speed{0.1f}"),
     ("Outcome", "@events"),
-    ("Exit Velo", "@launch_speed"),
+    ("Exit Velo", "@launch_speed{0.1f}"),
     ("Plate X", "@plate_x"),
     ("Plate Z", "@plate_z")
 ]
