@@ -3,6 +3,7 @@ from bokeh.models import (ColumnDataSource, DataTable, DateFormatter,
                           TableColumn, HoverTool, PolyAnnotation, CategoricalColorMapper,
                          Circle, CustomJS, MultiChoice, IndexFilter, CDSView)
 from bokeh.transform import factor_cmap
+from bokeh.palettes import Spectral11
 from bokeh.layouts import row, column
 from bokeh.io import output_notebook
 from bokeh.embed import file_html
@@ -10,9 +11,22 @@ from bokeh.resources import CDN
 import pandas as pd
 from datetime import date, timedelta
 
+from pybaseball import playerid_reverse_lookup
+
 
 run_dt = str(date.today() + timedelta(days=-1))
 df = pd.read_csv("data/tto_events.csv")
+
+# turn the player id of batters into a readable name
+batter_names_df = playerid_reverse_lookup(df.batter, key_type='mlbam')
+
+batter_names_df.loc[:, "batter_name"] = (batter_names_df.name_first + " " + batter_names_df.name_last)
+batter_names_df.loc[:, "batter_name"] = batter_names_df.loc[:, "batter_name"].apply(str.title)
+
+df = df.merge(batter_names_df[["key_mlbam", "batter_name"]],
+              left_on='batter',
+              right_on='key_mlbam',
+              how="left")
 
 plot_data = df["events"].value_counts()
 outcomes = list(plot_data.index)
@@ -24,7 +38,7 @@ plot_filter = IndexFilter(list(range(df.shape[0])))
 plot_view = CDSView(filter=plot_filter)
 
 columns = [
-        TableColumn(field="batter", title="Batter"),
+        TableColumn(field="batter_name", title="Batter"),
         TableColumn(field="pitch_type", title="Pitch Type"),
         TableColumn(field="release_speed", title="Pitch Speed"),
         TableColumn(field="events", title="Outcome"),
@@ -48,32 +62,37 @@ factors = list(df["events"].unique())
 multi_choice = MultiChoice(value=["home_run", "strikeout", "walk"], options=factors, width=800, height=50)
 
 
-# create a new plot with a title and axis labels
-group = df.groupby("events")
+# so I think the problem here is that I want this to count! but it doesn't have numbers to count
 
-p = figure(title="Count of All Events for {}".format(run_dt),
-           x_range=group,
-           x_axis_label='Outcomes',
-           y_axis_label='Frequency',
-           tools="",
-           width=400, 
-           height=400)
+grouped_data = df.groupby(by = ["events", "pitch_type"]).size().unstack(fill_value=0)
+categories = grouped_data.index.tolist()
+subcategories = grouped_data.columns.tolist()
 
-# add a line renderer with legend and line thickness to the plot
+source_grouped = ColumnDataSource(data=grouped_data)
 
-outcome_counts = p.vbar(x="events", 
-                        bottom=0, 
-                        top="strikes_count",
-                        source=group,
-                        width=0.8)
+pitch_colors = [Spectral11[ii%11] for ii in range(20)]
 
-tooltips_bar = [
-    ("Freqency ", "@events: @strikes_count"),
+p = figure(x_range=categories, height=400, width=400, title="", tools="")
+
+bars = p.vbar_stack(subcategories,
+                    x='events',
+                    width=0.9,
+                    line_color=pitch_colors[:len(subcategories)],
+                    fill_color=pitch_colors[:len(subcategories)],
+                    legend_label=subcategories,
+                    source=source_grouped)#, view=plot_view)
+
+# p.legend.orientation = "horizontal"
+# p.legend.location = "top_center"
+p.legend.visible = False
+
+# Add tooltips
+p_tooltips = [
+    ("Outcome", "@events"),
+    ("Pitch Type", "$name: @$name")
 ]
 
-outcome_hover = HoverTool(renderers=[outcome_counts], tooltips=tooltips_bar)
-p.add_tools(outcome_hover)
-
+p.add_tools(HoverTool(renderers=bars, tooltips=p_tooltips))
 
 # make a strike zone figure
 
@@ -129,11 +148,11 @@ pitches.selection_glyph = selected_circle
 pitches.nonselection_glyph = nonselected_circle
 
 tooltips = [
-    ("Batter", "@batter"),
+    ("Batter", "@batter_name"),
     ("Pitch Type", "@pitch_type"),
-    ("Pitch Speed", "@release_speed"),
+    ("Pitch Speed", "@release_speed{0.1f}"),
     ("Outcome", "@events"),
-    ("Exit Velo", "@launch_speed"),
+    ("Exit Velo", "@launch_speed{0.1f}"),
     ("Plate X", "@plate_x"),
     ("Plate Z", "@plate_z")
 ]
