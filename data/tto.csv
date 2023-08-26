@@ -1,1 +1,4 @@
 home_run,strikeout,walk,events,name_first,name_last,key_mlbam,run_date,has_been_posted,posted_time
+1,2,1,4,manny,machado,592518.0,2023-08-25,True,2023-08-26 15:27:54.330487+00:00
+1,4,1,6,edouard,julien,666397.0,2023-08-25,False,
+1,1,2,4,,,,2023-08-25,False,
